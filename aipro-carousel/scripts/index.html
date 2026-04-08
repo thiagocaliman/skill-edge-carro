@@ -1,10 +1,514 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>aipro-carousel</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI PRO Carousel Skill</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      padding: 16px;
+    }
+
+    /* ── Wrapper ── */
+    #carousel-root {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* ── Slide frame ── */
+    #slide-frame {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 0 1px #333, 8px 8px 0px #ff4d00;
+    }
+
+    /* ── Navigation bar ── */
+    #nav-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: 1px solid #666;
+      color: #e0e0e0;
+      padding: 10px 18px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      transition: all 0.15s;
+    }
+    .nav-btn:hover { border-color: #ff4d00; color: #ff4d00; }
+    .nav-btn.primary {
+      background: #ff4d00;
+      border-color: #ff4d00;
+      color: #1a1a1a;
+      box-shadow: 4px 4px 0px #1a1a1a;
+    }
+    .nav-btn.primary:hover { background: #e04400; }
+
+    /* ── Dots ── */
+    #dots {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      height: 6px;
+      border-radius: 0;
+      background: #333;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .dot.active { width: 24px; background: #ff4d00; }
+    .dot:not(.active) { width: 6px; }
+
+    /* ── Counter ── */
+    #counter {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: #666;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+  </style>
 </head>
 <body>
+  <div id="carousel-root">
+    <div id="slide-frame"></div>
+    <div id="nav-bar">
+      <button class="nav-btn" id="btn-prev">← PREV</button>
+      <div id="dots"></div>
+      <span id="counter">01 / 06</span>
+      <button class="nav-btn primary" id="btn-next">NEXT →</button>
+    </div>
+  </div>
+
+  <script>
+    // ─────────────────────────────────────────────
+    //  DESIGN SYSTEM CONSTANTS
+    // ─────────────────────────────────────────────
+    const C = {
+      c100: "#f2f2f2",
+      c200: "#e0e0e0",
+      c300: "#b8b8b8",
+      c400: "#8c8c8c",
+      c500: "#666666",
+      c700: "#333333",
+      c900: "#1a1a1a",
+      accent: "#ff4d00",
+    };
+
+    // SVG noise texture — concrete/industrial feel
+    const noiseSVG = `
+      <svg style="position:absolute;inset:0;width:100%;height:100%;
+                  pointer-events:none;opacity:0.035;mix-blend-mode:multiply;">
+        <filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.65"
+          numOctaves="3" stitchTiles="stitch"/>
+          <feColorMatrix type="saturate" values="0"/></filter>
+        <rect width="100%" height="100%" filter="url(#n)"/>
+      </svg>`;
+
+    // ─────────────────────────────────────────────
+    //  SLIDE RENDERERS
+    // ─────────────────────────────────────────────
+
+    // Slide 1 — Cover (dark)
+    function renderCover(d) {
+      return `
+        <div style="width:100%;height:100%;background:${C.c900};
+                    position:relative;overflow:hidden;
+                    display:flex;flex-direction:column;
+                    justify-content:flex-end;padding:48px 40px 52px;">
+          ${noiseSVG}
+
+          <!-- Vertical accent line right -->
+          <div style="position:absolute;top:0;right:80px;
+                      width:1px;height:100%;background:${C.accent}33;"></div>
+          <!-- Horizontal line bottom third -->
+          <div style="position:absolute;bottom:120px;left:0;
+                      width:100%;height:1px;background:${C.c300}20;"></div>
+
+          <!-- Tag label -->
+          <div style="display:inline-block;font-family:'Courier New',monospace;
+                      font-size:10px;font-weight:700;letter-spacing:0.15em;
+                      text-transform:uppercase;padding:4px 10px;
+                      border:1px solid ${C.accent};color:${C.accent};
+                      margin-bottom:20px;width:fit-content;">
+            AI PRO
+          </div>
+
+          <!-- Main headline -->
+          <div style="font-family:'Arial Black','Helvetica Neue',sans-serif;
+                      font-size:clamp(38px,8vw,60px);font-weight:900;
+                      text-transform:uppercase;letter-spacing:-0.03em;
+                      line-height:0.9;color:${C.c100};margin-bottom:24px;
+                      position:relative;z-index:1;">
+            ${d.headline}
+          </div>
+
+          <!-- Slide counter top-right -->
+          <div style="position:absolute;top:32px;right:32px;
+                      font-family:'Courier New',monospace;font-size:11px;
+                      font-weight:700;color:${C.c500};letter-spacing:0.1em;">
+            01 / 06
+          </div>
+        </div>`;
+    }
+
+    // Slide 2 — What (light)
+    function renderWhat(d) {
+      return `
+        <div style="width:100%;height:100%;background:${C.c100};
+                    position:relative;overflow:hidden;
+                    display:flex;flex-direction:column;
+                    justify-content:center;padding:48px 40px;">
+          ${noiseSVG}
+
+          <div style="position:absolute;top:0;left:40px;
+                      width:1px;height:100%;background:${C.c900}18;"></div>
+
+          <div style="display:inline-block;font-family:'Courier New',monospace;
+                      font-size:10px;font-weight:700;letter-spacing:0.15em;
+                      text-transform:uppercase;padding:4px 10px;
+                      border:1px solid ${C.c900}40;color:${C.c500};
+                      margin-bottom:24px;width:fit-content;">
+            02 / 06
+          </div>
+
+          <div style="font-family:'Arial Black',sans-serif;
+                      font-size:clamp(28px,6vw,44px);font-weight:900;
+                      text-transform:uppercase;letter-spacing:-0.02em;
+                      line-height:0.92;color:${C.c900};margin-bottom:28px;">
+            ${d.slide2_title}
+          </div>
+
+          <div style="background:${C.c900};padding:24px 24px 24px 36px;
+                      position:relative;">
+            <div style="position:absolute;top:0;left:0;width:6px;height:100%;
+                        background:${C.accent};"></div>
+            <p style="font-family:Georgia,serif;font-size:15px;
+                      color:${C.c200};line-height:1.7;margin:0;font-style:italic;">
+              "${d.slide2_body}"
+            </p>
+          </div>
+        </div>`;
+    }
+
+    // Slide 3 — Features (dark)
+    function renderFeatures(d) {
+      const items = d.slide3_body.split('|').map(s => s.trim()).filter(Boolean);
+      const rows = items.map((item, i) => `
+        <div style="display:flex;align-items:center;
+                    background:${i % 2 === 0 ? C.c700 : 'transparent'};
+                    border:1px solid ${C.c700};
+                    padding:14px 18px;gap:18px;margin-bottom:2px;">
+          <span style="font-family:'Courier New',monospace;font-size:11px;
+                       font-weight:700;color:${C.accent};letter-spacing:0.1em;
+                       min-width:28px;">${String(i+1).padStart(2,'0')}</span>
+          <span style="font-family:Georgia,serif;font-size:13px;
+                       color:${C.c200};line-height:1.5;">${item}</span>
+          <span style="margin-left:auto;color:${C.accent};font-size:14px;">→</span>
+        </div>`).join('');
+
+      return `
+        <div style="width:100%;height:100%;background:${C.c900};
+                    position:relative;overflow:hidden;
+                    display:flex;flex-direction:column;
+                    justify-content:center;padding:40px 36px;">
+          ${noiseSVG}
+
+          <div style="position:absolute;top:24px;right:28px;
+                      font-family:'Courier New',monospace;font-size:11px;
+                      font-weight:700;color:${C.c500};letter-spacing:0.1em;">
+            03 / 06
+          </div>
+
+          <div style="font-family:'Arial Black',sans-serif;
+                      font-size:clamp(22px,5vw,34px);font-weight:900;
+                      text-transform:uppercase;letter-spacing:-0.02em;
+                      color:${C.c100};margin-bottom:24px;line-height:0.92;">
+            ${d.slide3_title}
+          </div>
+
+          <div>${rows}</div>
+        </div>`;
+    }
+
+    // Slide 4 — Who (light)
+    function renderWho(d) {
+      return `
+        <div style="width:100%;height:100%;background:${C.c200};
+                    position:relative;overflow:hidden;
+                    display:flex;flex-direction:column;
+                    justify-content:flex-end;padding:48px 40px 52px;">
+          ${noiseSVG}
+
+          <!-- Ghost number background -->
+          <div style="position:absolute;top:-20px;right:-10px;
+                      font-family:'Arial Black',sans-serif;font-size:220px;
+                      font-weight:900;color:${C.c300};opacity:0.4;
+                      line-height:1;pointer-events:none;user-select:none;">
+            04
+          </div>
+
+          <div style="position:absolute;top:24px;left:28px;
+                      font-family:'Courier New',monospace;font-size:11px;
+                      font-weight:700;color:${C.c500};letter-spacing:0.1em;">
+            04 / 06
+          </div>
+
+          <div style="font-family:'Arial Black',sans-serif;
+                      font-size:clamp(28px,6vw,44px);font-weight:900;
+                      text-transform:uppercase;letter-spacing:-0.02em;
+                      line-height:0.92;color:${C.c900};margin-bottom:20px;
+                      position:relative;z-index:1;">
+            ${d.slide4_title}
+          </div>
+
+          <p style="font-family:Georgia,serif;font-size:15px;
+                    color:${C.c500};line-height:1.7;
+                    position:relative;z-index:1;">
+            ${d.slide4_body}
+          </p>
+        </div>`;
+    }
+
+    // Slide 5 — Impact / Stats (dark)
+    function renderImpact(d) {
+      const stats = d.slide5_body.split('|').map(s => s.trim()).filter(Boolean);
+      // Expects "VALUE::LABEL" format per stat, e.g. "3x::Mais Rápido|80%::Economia"
+      const statBlocks = stats.map((s, i) => {
+        const [val, lbl] = s.split('::');
+        return `
+          <div style="background:${i === 0 ? C.accent : C.c700};
+                      padding:20px 16px;text-align:center;">
+            <div style="font-family:'Arial Black',sans-serif;
+                        font-size:clamp(36px,7vw,54px);font-weight:900;
+                        color:${i === 0 ? C.c900 : C.accent};
+                        line-height:1;margin-bottom:8px;">
+              ${val || s}
+            </div>
+            <div style="font-family:'Courier New',monospace;font-size:9px;
+                        font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+                        color:${i === 0 ? C.c900 : C.c400};">
+              ${lbl || ''}
+            </div>
+          </div>`;
+      }).join('');
+
+      return `
+        <div style="width:100%;height:100%;background:${C.c900};
+                    position:relative;overflow:hidden;
+                    display:flex;flex-direction:column;
+                    justify-content:center;padding:40px 36px;">
+          ${noiseSVG}
+
+          <div style="position:absolute;top:24px;right:28px;
+                      font-family:'Courier New',monospace;font-size:11px;
+                      font-weight:700;color:${C.c500};letter-spacing:0.1em;">
+            05 / 06
+          </div>
+
+          <div style="font-family:'Arial Black',sans-serif;
+                      font-size:clamp(22px,5vw,34px);font-weight:900;
+                      text-transform:uppercase;letter-spacing:-0.02em;
+                      color:${C.c100};margin-bottom:28px;line-height:0.92;">
+            ${d.slide5_title}
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(${Math.min(stats.length,3)},1fr);gap:2px;">
+            ${statBlocks}
+          </div>
+        </div>`;
+    }
+
+    // Slide 6 — CTA (light)
+    function renderCTA(d) {
+      return `
+        <div style="width:100%;height:100%;background:${C.c100};
+                    position:relative;overflow:hidden;
+                    display:flex;flex-direction:column;
+                    justify-content:center;padding:48px 40px;">
+          ${noiseSVG}
+
+          <!-- Solid orange bar right -->
+          <div style="position:absolute;top:0;right:0;
+                      width:8px;height:100%;background:${C.accent};"></div>
+          <!-- Dark bar bottom -->
+          <div style="position:absolute;bottom:0;left:0;
+                      width:100%;height:8px;background:${C.c900};"></div>
+
+          <div style="position:absolute;top:24px;left:28px;
+                      font-family:'Courier New',monospace;font-size:11px;
+                      font-weight:700;color:${C.c500};letter-spacing:0.1em;">
+            06 / 06
+          </div>
+
+          <div style="display:inline-block;font-family:'Courier New',monospace;
+                      font-size:10px;font-weight:700;letter-spacing:0.15em;
+                      text-transform:uppercase;padding:4px 10px;
+                      border:1px solid ${C.accent};color:${C.accent};
+                      margin-bottom:24px;width:fit-content;">
+            AÇÃO
+          </div>
+
+          <div style="font-family:'Arial Black',sans-serif;
+                      font-size:clamp(30px,6.5vw,50px);font-weight:900;
+                      text-transform:uppercase;letter-spacing:-0.02em;
+                      line-height:0.92;color:${C.c900};margin-bottom:20px;">
+            ${d.cta_text}
+          </div>
+
+          <p style="font-family:Georgia,serif;font-size:14px;
+                    color:${C.c500};line-height:1.7;margin-bottom:32px;">
+            ${d.cta_sub || 'Siga para mais conteúdo sobre IA.'}
+          </p>
+
+          <button style="background:${C.accent};border:1px solid ${C.accent};
+                         color:${C.c900};padding:16px 28px;cursor:default;
+                         font-family:'Courier New',monospace;font-size:12px;
+                         font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+                         box-shadow:4px 4px 0px ${C.c900};width:fit-content;">
+            @AIPRO →
+          </button>
+        </div>`;
+    }
+
+    // ─────────────────────────────────────────────
+    //  CAROUSEL STATE & CONTROLLER
+    // ─────────────────────────────────────────────
+    let currentSlide = 0;
+    let slides = [];
+
+    function buildSlides(data) {
+      return [
+        renderCover(data),
+        renderWhat(data),
+        renderFeatures(data),
+        renderWho(data),
+        renderImpact(data),
+        renderCTA(data),
+      ];
+    }
+
+    function renderSlide() {
+      document.getElementById('slide-frame').innerHTML = slides[currentSlide];
+      document.getElementById('counter').textContent =
+        `${String(currentSlide + 1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}`;
+
+      // Update dots
+      document.querySelectorAll('.dot').forEach((dot, i) => {
+        dot.className = 'dot' + (i === currentSlide ? ' active' : '');
+      });
+    }
+
+    function buildDots(total) {
+      const container = document.getElementById('dots');
+      container.innerHTML = '';
+      for (let i = 0; i < total; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'dot' + (i === 0 ? ' active' : '');
+        dot.onclick = () => { currentSlide = i; renderSlide(); };
+        container.appendChild(dot);
+      }
+    }
+
+    function initCarousel(data) {
+      slides = buildSlides(data);
+      buildDots(slides.length);
+      renderSlide();
+
+      document.getElementById('btn-prev').onclick = () => {
+        if (currentSlide > 0) { currentSlide--; renderSlide(); }
+      };
+      document.getElementById('btn-next').onclick = () => {
+        if (currentSlide < slides.length - 1) { currentSlide++; renderSlide(); }
+      };
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' && currentSlide > 0) { currentSlide--; renderSlide(); }
+        if (e.key === 'ArrowRight' && currentSlide < slides.length - 1) { currentSlide++; renderSlide(); }
+      });
+    }
+
+    // ─────────────────────────────────────────────
+    //  MAIN ENTRY POINT — required by AI Edge Gallery
+    // ─────────────────────────────────────────────
+    window.ai_edge_gallery_get_result = async function(data) {
+      try {
+        // 1. Parse the JSON string received from the LLM
+        const params = JSON.parse(data);
+
+        // 2. Provide safe defaults for any missing fields
+        const d = {
+          headline:      params.headline      || "SEM TÍTULO",
+          slide2_title:  params.slide2_title  || "CONTEXTO",
+          slide2_body:   params.slide2_body   || "Conteúdo não fornecido.",
+          slide3_title:  params.slide3_title  || "COMO FAZER",
+          slide3_body:   params.slide3_body   || "Passo 1|Passo 2|Passo 3",
+          slide4_title:  params.slide4_title  || "PARA QUEM É",
+          slide4_body:   params.slide4_body   || "Para quem quer evoluir com IA.",
+          slide5_title:  params.slide5_title  || "RESULTADOS",
+          slide5_body:   params.slide5_body   || "10x::Mais Rápido|80%::Economia|100%::Offline",
+          cta_text:      params.cta_text      || "COMECE AGORA",
+          cta_sub:       params.cta_sub       || "Siga para mais conteúdo sobre IA.",
+        };
+
+        // 3. Build and render the carousel
+        initCarousel(d);
+
+        // 4. Return success to the LLM
+        return JSON.stringify({
+          result: `Carrossel "${d.headline}" gerado com sucesso! 6 slides prontos para navegar.`
+        });
+
+      } catch (err) {
+        // 5. Return error if anything goes wrong
+        return JSON.stringify({ error: `Erro ao gerar carrossel: ${err.message}` });
+      }
+    };
+
+    // ─────────────────────────────────────────────
+    //  PREVIEW — runs when opened directly in browser
+    //  (not inside the Gallery app)
+    // ─────────────────────────────────────────────
+    if (window.location.protocol !== 'about:') {
+      const preview = {
+        headline: "IA QUE TRABALHA POR VOCÊ",
+        slide2_title: "O QUE É",
+        slide2_body: "Agentes de IA são sistemas que tomam decisões e executam tarefas de forma autônoma, sem intervenção humana a cada passo.",
+        slide3_title: "COMO USAR",
+        slide3_body: "Defina o objetivo|Escolha as ferramentas|Configure os gatilhos|Monitore os resultados",
+        slide4_title: "PARA QUEM É",
+        slide4_body: "Para criadores de conteúdo, empresários e profissionais que querem automatizar tarefas repetitivas e focar no que importa.",
+        slide5_title: "IMPACTO REAL",
+        slide5_body: "10x::Produtividade|80%::Menos Custo|24h::Disponível",
+        cta_text: "SALVA ESSE POST",
+        cta_sub: "Siga @aipro para aprender IA na prática todo dia.",
+      };
+      initCarousel(preview);
+    }
+  </script>
 </body>
 </html>
